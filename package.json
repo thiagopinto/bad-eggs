@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@carbon/react": "^1.33.2",
+    "sass": "^1.63.6"
+  }
+}
