@@ -2,9 +2,11 @@ from fastapi import APIRouter, HTTPException, status
 from app.models import Status
 from app.config import get_settings
 from datetime import datetime
-from app.ovitrampa.models import Cycles, CyclesIn, CyclesOut, CyclesWithOvitrampa, Ovitrampas
+from app.ovitrampa.models import Cycles, CyclesIn, CyclesOut, Ovitrampas, Segments, Images
 from fastapi_pagination import Page
 from fastapi_pagination.ext.tortoise import paginate
+from tortoise.functions import Sum
+from app.yolo.services import delete
 
 
 settings = get_settings()
@@ -17,11 +19,18 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=Page[CyclesWithOvitrampa])
+@router.get("/", response_model=Page[CyclesOut])
 async def get_cycles(ovitrampa_id: int = 0):
-    
+
     return await paginate(
-        query=Cycles.filter(ovitrampa_id=ovitrampa_id).prefetch_related("ovitrampa").order_by("-start").all(),
+        query=Cycles.filter(ovitrampa_id=ovitrampa_id)
+        .prefetch_related("ovitrampa")
+        .order_by("-start")
+        .all()
+        # .annotate(
+        #    eggs=Sum("images__segments__eggs"),
+        #    bad_eggs=Sum("images__segments__bad_eggs")
+        # )
         # prefetch_related=["saad"]
     )
 
@@ -29,7 +38,11 @@ async def get_cycles(ovitrampa_id: int = 0):
 @router.get("/{cycle_id}", response_model=CyclesOut)
 async def get_cycle(cycle_id: int):
     try:
-        return await CyclesOut.from_queryset_single(Cycles.get(id=cycle_id))
+        return await Cycles.get(id=cycle_id).prefetch_related("ovitrampa").annotate(
+            eggs=Sum("images__segments__eggs"),
+            bad_eggs=Sum("images__segments__bad_eggs")
+        )
+
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Cycle not found"
@@ -40,8 +53,7 @@ async def get_cycle(cycle_id: int):
 async def create_cycle(cycleIn: CyclesIn):
     cycle = await Cycles(**cycleIn.dict())
     await cycle.save()
-
-    return await CyclesOut.from_tortoise_orm(cycle)
+    return cycle
 
 
 @router.put("/{cycle_id}", response_model=CyclesOut)
@@ -50,12 +62,10 @@ async def update_cycle(cycle_id: int, cycleIn: CyclesIn):
         cycle = await Cycles.get(id=cycle_id)
         cycle.start = cycleIn.start
         cycle.end = cycleIn.end
-        cycle.number = cycleIn.number
-        cycle.ovitrampa_id = cycleIn.ovitrampa_id
         cycle.updated_at = datetime.now()
         await cycle.save()
 
-        return await CyclesOut.from_tortoise_orm(cycle)
+        return cycle
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Cycle not found"
@@ -65,6 +75,15 @@ async def update_cycle(cycle_id: int, cycleIn: CyclesIn):
 @router.delete("/{cycle_id}", response_model=Status)
 async def delete_cycle(cycle_id: int):
     try:
+        cycle = await Cycles.get(id=cycle_id)
+
+        for image in await cycle.images:
+            is_delete = delete(image)
+            if is_delete:          
+                for segment in await image.segments:
+                    deleted_count = await Segments.filter(id=segment.id).delete()
+                deleted_count = await Images.filter(id=image.id).delete()
+
         deleted_count = await Cycles.filter(id=cycle_id).delete()
         if not deleted_count:
             raise HTTPException(

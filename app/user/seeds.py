@@ -1,10 +1,16 @@
-from app.user.models import Users, Scopes
+from os import name
+from app.user.models import Users, Scopes, Origins
 from app.config import get_settings
 
 settings = get_settings()
 
 
 async def run():
+
+    originList = [
+        {"name": "Zoonoses"},
+        {"name": "UFPI"}
+    ]
     scopeList = [
         {"name": "*", "description": "Permissions allowed to all resources"},
         {
@@ -40,31 +46,20 @@ async def run():
             "name": "Thiago Pinto Dias",
             "username": "thiago@codebr.dev",
             "password_hash": password_hash,
-            "verified_is": True,
-        },
-        {
-            "name": "Pedro Pinto Dias",
-            "username": "pedro@codebr.dev",
-            "password_hash": password_hash,
-            "verified_is": True,
-        },
-        {
-            "name": "João Pinto Dias",
-            "username": "joao@codebr.dev",
-            "password_hash": password_hash,
-            "verified_is": True,
-        },
-        {
-            "name": "José Pinto Dias",
-            "username": "jose@codebr.dev",
-            "password_hash": password_hash,
+            "origin_id": 1,
             "verified_is": True,
         },
     ]
 
+    originObjectList = []
     scopeObjectList = []
     userObjectList = []
-   
+
+    for origin in originList:
+        originObject = Origins(**origin)
+        await originObject.save()
+        originObjectList.append(originObject)
+
     for scope in scopeList:
         scopeObject = Scopes(**scope)
         await scopeObject.save()
@@ -79,4 +74,3 @@ async def run():
         for scope in scopeObjectList:
             await user.scopes.add(scope)
 
-        

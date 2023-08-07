@@ -7,6 +7,10 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 settings = get_settings()
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+class Origins(Model):
+    id = fields.IntField(pk=True)
+    name = fields.CharField(max_length=255)
+    users: fields.ReverseRelation["Users"]
 
 class Users(Model):
     id = fields.IntField(pk=True)
@@ -18,6 +22,10 @@ class Users(Model):
     scopes: fields.ManyToManyRelation["Scopes"] = fields.ManyToManyField(
         "models.Scopes", related_name="users", through="users_scopes"
     )
+    origin: fields.ForeignKeyRelation[Origins] = fields.ForeignKeyField(
+        "models.Origins", related_name="users"
+    )
+
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 

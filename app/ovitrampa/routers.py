@@ -6,7 +6,8 @@ from app.config import get_settings
 from datetime import datetime
 from app.ovitrampa import saad
 from app.ovitrampa.cycle.routers import router as cycle_router
-from app.ovitrampa.cycle_image.routers import router as cycle_image_router
+from app.ovitrampa.image.routers import router as image_router
+from app.ovitrampa.segment.routers import router as segment_router
 from app.ovitrampa.models import Ovitrampas, OvitrampasIn, OvitrampasOut, OvitrampasWithSaad
 from fastapi_pagination import Page
 from fastapi_pagination.ext.tortoise import paginate
@@ -86,4 +87,5 @@ async def delete_ovitrampa(ovitrampa_id: int):
 
 
 router.include_router(cycle_router)
-router.include_router(cycle_image_router)
+router.include_router(image_router)
+router.include_router(segment_router)

@@ -6,28 +6,22 @@ import cv2
 from datetime import date
 from fastapi import UploadFile
 from ultralytics import YOLO
-from app.ovitrampa.models import CycleImages
+from app.ovitrampa.models import Images, Segments
+from tortoise.functions import Sum
 
 # def save_result_predict()
 
 
-def count_objects(results, model_classes):
+def count_objects(result, model_classes):
     object_counts = {x: 0 for x in model_classes}
 
-    for result in results:
-        for c in result.boxes.cls:
-            c = int(c)
-            if c in model_classes:
-                object_counts[c] += 1
-            elif c not in model_classes:
-                object_counts[c] = 1
+    for c in result.boxes.cls:
+        c = int(c)
+        if c in model_classes:
+            object_counts[c] += 1
+        elif c not in model_classes:
+            object_counts[c] = 1
 
-    # present_objects = object_counts.copy()
-    """
-    for i in object_counts:
-        if object_counts[i] < 1:
-            present_objects.pop(i)
-    """
     objects_counts = {}
     for i in object_counts:
         objects_counts[model_classes[i]] = object_counts[i]
@@ -35,7 +29,8 @@ def count_objects(results, model_classes):
     return objects_counts
 
 
-def predict(source_dir: str, destination_dir: str):
+async def predict(source_dir: str, destination_dir: str, image_id: int):
+
     neutal_network_dir = os.path.join(os.getcwd(), "neural_network")
 
     if os.path.isfile(f"{neutal_network_dir}/best.pt"):
@@ -57,20 +52,26 @@ def predict(source_dir: str, destination_dir: str):
 
     index = 0
 
-    class_counts = count_objects(results, model.names)
+    segments = []
 
     for result in results:
-        """
-        for box in result.boxes:
-            print("Object type:", result.names[int(box.cls[0].item())])
-            print("Coordinates:", box.xyxy[0].tolist())
-            print("Probability:", round(box.conf[0].item(), 2))
-        """
+
+        objects_counts = count_objects(result, model.names)
+
         img = result.plot()
         cv2.imwrite(f"{destination_dir}/{files_names[index]}", img)
-        index += 1
 
-    return class_counts
+        segment = await Segments(
+            file_name=f"{files_names[index]}",
+            eggs=objects_counts["egg"],
+            bad_eggs=objects_counts["bad_egg"],
+            imagem_id=image_id
+        )
+        await segment.save()
+        index += 1
+        segments.append(segment)
+
+    return segments
 
 
 def slice_image(path_origin: str, path_dest: str, file_name: str):
@@ -98,7 +99,7 @@ def slice_image(path_origin: str, path_dest: str, file_name: str):
 
 def thumbnail_image(path_origin: str, path_dest: str, file_name: str):
     width = 640
-    height = 640
+    height = 360
 
     if os.path.isfile(f"{path_origin}/{file_name}"):
         base, ext = os.path.splitext(file_name)
@@ -108,8 +109,10 @@ def thumbnail_image(path_origin: str, path_dest: str, file_name: str):
 
         img = cv2.imread(f"{path_origin}/{file_name}")
 
-        maxsize = (width, height)
-        imRes = cv2.resize(img, maxsize, interpolation=cv2.INTER_AREA)
+        ratio = 640.0 / img.shape[1]
+        dimension = (640, int(img.shape[0] * ratio))
+
+        imRes = cv2.resize(img, dimension, interpolation=cv2.INTER_LINEAR)
 
         cv2.imwrite(f"{path_dest}/{file_name}", imRes)
 
@@ -163,7 +166,7 @@ def create_struct(file_dir: str):
     }
 
 
-def storage(date: date, files: list[UploadFile]):
+async def storage(date: date, files: list[UploadFile], cycle_id: int):
     results = []
 
     for file in files:
@@ -177,29 +180,32 @@ def storage(date: date, files: list[UploadFile]):
             with open(f"{paths['original_file_dir']}/{file_name}", "wb") as f:
                 f.write(contents)
 
-            slice_image(
-                path_origin=paths["original_file_dir"],
-                path_dest=paths["processed_file_dir"],
-                file_name=file_name,
-            )
-
             thumbnail_image(
                 path_origin=paths["original_file_dir"],
                 path_dest=paths["thumbnail_file_dir"],
                 file_name=file_name,
             )
 
-            count_objects = predict(
-                paths["processed_file_dir"], paths["predict_file_dir"]
+            slice_image(
+                path_origin=paths["original_file_dir"],
+                path_dest=paths["processed_file_dir"],
+                file_name=file_name,
             )
-            result: dict[str: any]
-            result = {
-                "file_name": file_dir,
-                "file_extension": ext,
-                "counts": count_objects
-            }
 
-            results.append(result)
+            cycle_image = await Images(
+                file_name=file_dir,
+                file_extension=ext,
+                cycle_id=cycle_id
+            )
+            await cycle_image.save()
+
+            segments = await predict(
+                paths["processed_file_dir"],
+                paths["predict_file_dir"],
+                image_id=cycle_image.id
+            )
+            
+            results.append(cycle_image)
         except Exception:
             return {"message": "There was an error uploading the file(s)"}
         finally:
@@ -208,7 +214,7 @@ def storage(date: date, files: list[UploadFile]):
     return results
 
 
-def delete(image: CycleImages):
+def delete(image: Images):
     try:
         storage_dir = os.path.join(os.getcwd(), "storage")
         original_dir = os.path.join(storage_dir, "original")
