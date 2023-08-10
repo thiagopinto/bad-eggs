@@ -1,10 +1,15 @@
+from fastapi import Response, Request
 from app import get_application
 from tortoise.contrib.fastapi import register_tortoise
 from fastapi.staticfiles import StaticFiles
 from app.database import DATABASE_URL, models
 from fastapi_pagination import add_pagination
-
-#import app.logging  # noqa: F401
+from fastapi.responses import RedirectResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import FileResponse
+import os
+root = os.path.dirname(os.path.abspath(__file__))
+# import app.logging  # noqa: F401
 
 app = get_application()
 """ 
