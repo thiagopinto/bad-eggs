@@ -6,7 +6,7 @@ from app.user.routers import router as user_router
 from app.ovitrampa.routers import router as ovitrampa_router
 from app.ovitrampa.saad.routers import router as saad_router
 
-router = APIRouter()
+router = APIRouter(prefix="/api-eggs")
 
 @router.get('/')
 async def root(request: Request):
