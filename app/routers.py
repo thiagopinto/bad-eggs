@@ -10,7 +10,7 @@ router = APIRouter()
 
 @router.get('/')
 async def root():
-    return RedirectResponse("/docs")
+    # return RedirectResponse("/docs")
     return {"message": "Hello World"}
 
 router.include_router(auth_router)
