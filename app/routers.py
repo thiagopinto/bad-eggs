@@ -1,12 +1,15 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
+from app.config import get_settings
 from app.auth.routers import router as auth_router
 from app.client.routers import router as client_router
 from app.user.routers import router as user_router
 from app.ovitrampa.routers import router as ovitrampa_router
 from app.ovitrampa.saad.routers import router as saad_router
 
-router = APIRouter(prefix="/api-eggs")
+settings = get_settings()
+
+router = APIRouter(prefix=settings.API_PREFIX)
 
 @router.get('/')
 async def root(request: Request):
