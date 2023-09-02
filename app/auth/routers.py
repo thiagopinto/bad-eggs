@@ -74,6 +74,7 @@ async def verify_client(token: str):
 
 @router.post("/login")
 async def login(form_login: OAuth2PasswordRequestForm = Depends()):
+    return form_login
     if form_login.client_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
