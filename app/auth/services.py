@@ -1,6 +1,7 @@
 from jose import jwt, JWTError
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from pydantic import UUID4
@@ -46,11 +47,11 @@ class Auth:
         access_token = Auth.create_access_token(user_dict)
         refresh_token = Auth.create_refresh_token(user_dict)
 
-        return {
+        return JSONResponse({
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-        }
+        }, status_code=200)
 
     @staticmethod
     async def authenticate_by_client(
