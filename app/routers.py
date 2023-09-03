@@ -9,7 +9,7 @@ from app.ovitrampa.saad.routers import router as saad_router
 
 settings = get_settings()
 
-router = APIRouter(prefix=settings.API_PREFIX)
+router = APIRouter()
 #prefix=settings.API_PREFIX
 @router.get('/')
 async def root(request: Request):
