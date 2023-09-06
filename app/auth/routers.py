@@ -16,12 +16,12 @@ router = APIRouter(
 )
 
 
-@router.get("/client")
+@router.get("/client/")
 async def authorization_client(client_id: str = Form(), client_secret: str = Form()):
     return {"client_id": client_id, "client_secret": client_secret}
 
 
-@router.post("/client/send/verify/token")
+@router.post("/client/send/verify/token/")
 async def send_token_verify_client(
     client_id: str,
     responsible_email: str,
@@ -72,7 +72,7 @@ async def verify_client(token: str):
         )
 
 
-@router.post("/login", include_in_schema=False)
+@router.post("/login/", include_in_schema=False)
 async def login(form_login: OAuth2PasswordRequestForm = Depends()):
     if form_login.client_id is None:
         raise HTTPException(
@@ -106,12 +106,12 @@ async def login(form_login: OAuth2PasswordRequestForm = Depends()):
     )
 
 
-@router.post("/refresh")
+@router.post("/refresh/")
 async def refresh(refresh_token: str = Form()):
     return await Auth.refresh_token(refresh_token)
 
 
-@router.post("/send/verify/token")
+@router.post("/send/verify/token/")
 async def send_token_verify_user(
     username: str,
     background_tasks: BackgroundTasks,
